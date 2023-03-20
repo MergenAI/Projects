@@ -1,1 +1,42 @@
+Aim of that project was to calculate some ratio of stocks. There are many ratios already on the market, but I calculate some ratios, that I find more significant than the others, by using balance sheet of the company, too. 
+The other goal was to visualize those ratios and some columns from balance sheet, like net sales, cost of sales, earnings per share, etc. 
+The third goal was to practice on python libraries, that I learned recently. 
+
+The list of used libraries:
+  •	Pandas
+  •	BeautifulSoup
+  •	Plotly
+  •	Seaborn
+  •	matplotlib
+  •	Request
+  •	Openpyxl
+  •	Os
+  •	PIL
+  
+The project contains 6 classes:
+  1.	ExtractData
+  2.	DataInterpretor
+  3.	DataVisualiser
+  4.	DataRecorder
+  5.	Utils
+  6.	Main
+
+ExtractData.py
+In order to prevent denied access, ExtractData class is created. The website, that I data scrape, denied access, while I was trying to access data they have. After some research on the net, I found a way to solve that problem
+
+DataInterpretor.py
+In that class, aforementioned ratios are calculated. To retrieve desired columns, pandas library is used. Retrieved columns are used to calculate my ratios and already existing rations on the market. After calculating ratios, related xlsx and csv files are modified, ratios are written. 
+
+DataVisualiser.py
+That is, where we visualize our data. We access data through .csv file. User gives an input, which column in file will be visualized. According to that input, program retrieves columns and visualize data via either seaborn or plotly. Library is set to seaborn at beginning. User can select plotly with plotly=True
+
+
+DataRecorder.py
+The class DataRecorder retrieves data from the website. It allows user to not only give a single company name but also give a sequence of companies to retrieve data. When the input is an array, it works recursively to retrieve data from all companies, that are given. After retrieving data from a company is done, both xlsx and csv files are created and data are written on them. We use csv to use pandas and xlsx to read retrieved data easily. 
+
+Utils
+Width of each column is automatically set by ‘adjustColumnWidth’ function after each writing 
+
+Main
+At that point user gives company or companies to retrieve data, calculate ratios, column names to visualize data. 
 
