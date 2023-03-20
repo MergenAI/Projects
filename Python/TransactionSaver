@@ -1,1 +1,18 @@
+Aim of that project was register all my transactions to MongoDB database in order to evaluate each stock better and practice on MongoDB
+
+Used libraries:
+  1.	Pymongo
+  2.	Pandas
+  3.	bson
+  
+Project contains 2 class:
+  1.	StocksDatabaseLogger
+  2.	StocksScreener
+  
+StocksDatabaseLogger
+Program logs the transactions
+
+StocksScreener
+User sorts data and retrieves a dataframe using pandas
+
 
