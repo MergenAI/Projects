@@ -1,1 +1,19 @@
+The aim of this project is to retrieve text from uncopiable pdfs and images whilst user takes a screenshot. Some of PDFs don’t allow users to copy texts. So, that’s why I wrote that program. 
+
+Used libraries:
+  •	Pytesseract
+  •	Numpy
+  •	Time
+  •	Keyboard
+  •	Pyautogui
+  •	OpenCV
+  •	Tkinter
+  •	Googletrans
+  
+First, I declared firstPoint and secondPoint to store rectangle point to crop screenshot. I get these points via cv2.EVENT_LBUTTONDOWN, cv2.EVENT_MOUSEMOVE and cv2.EVENT_LBUTTONUP.
+A screenshot can be taken via pyautogui.screenshot function. That screenshot will be displayed on GUI. In order to display screenshot with appropriate colors, screenshot is converted from BGR to RGB and resized to given sizes. Then user selects an area to be converted into string. User can also select, whether text is saved or not. Then user clicks to “Detect Text” button.  User can select German or English, if text is in German to translate into English and vice versa. 
+
+
+
+
 
