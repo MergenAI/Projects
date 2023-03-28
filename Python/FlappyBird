@@ -1,1 +1,30 @@
+The aim of that project was to practice more on the deep learning algorithms. I’ve already gained plenty of experiences on Tensorflow-Keras, Reinforcement Learning and Computer Vision. My idea was to use as many as new algorithms to be expert on that subject. In order to train the Neat algorithm with using Flappy Bird, I had to develop the game myself. But instead, implementing and modifying the source code, was more reasonable. In this way, I had more time to think on and implement the algorithm
+
+Used libraries:
+  •	OpenCV
+  •	Neat
+  •	Pygame
+  •	Math
+  •	Os
+  •	Random
+  •	Collections
+  
+Project contains 2 classes:
+  •	flappyBird
+  •	algorithm 
+  
+flappyBird.py
+In this class, there exists source code of flappy bird from Timo Wilken. I modified it to use Neat Algorithm. 
+https://github.com/TimoWilken/flappy-bird-pygame
+
+algorithm.py
+First, a recorder is declared via OpenCV to record the frames. Then, the game is initialized. An endless while-loop is implemented to repeat the process unless user terminates program manually. If there aren’t any birds yet, while loop will be repeated from the beginning and generation number is incremented by one. Number of alive birds is whilst a for loop checks over every bird whether one of them is collided with any pipe or not. Alive birds to train the algorithm, and birds collided with pipe are removed from the algorithms train list.
+
+YouTube video is available, too 
+https://www.youtube.com/watch?v=qYm3ghxCAOM
+
+
+
+
+
 
