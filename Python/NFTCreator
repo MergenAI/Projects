@@ -1,1 +1,6 @@
 
+The aim of this project is to create NFTs automatically. There are some predetermined areas to place objects, like hat position, glasses position, scarf position etc. Background is chosen arbitrarily. 
+Used libraries:
+  •	OpenCV
+  •	Numpy
+  •	random 
