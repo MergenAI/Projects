@@ -1,0 +1,23 @@
+Aim of this project is to facilitate my father’s job and increase his business’ productivity. There are many market managing programs on the internet. I wanted to save him from any extra expenses. I worked by my father and made many conversations to understand which operations, features and GUIs my father does require. 
+Used libraries:
+  •	Java.awt
+  •	Java.sql
+  •	Java.swing
+
+The program has two packages:
+  •	market
+  •	utilities
+and 9 classes:
+  •	market
+  o	mainScreen
+  o	profitScreen
+  o	customerDebt
+  o	addCustomerGUI
+  o	sellGUI
+  o	addProductGUI
+  •	utilities
+  o	connection
+  o	pop_upMessages
+  o	databaseOperations
+
+
