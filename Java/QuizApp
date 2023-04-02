@@ -1,0 +1,23 @@
+Aim of this project is to create a quiz app on my own. I developed that app to memorize German words and phrases better. First, I create an excel table which contains to be memorized words and which should contain only two columns: German and English. Then, the app reads that excel table row by row and saves words into SQL database. I used MariaDB as monitoring SQL database. As words are saved, user name database as user wish. On the main screen there is a scroll table, which contains named databases. User selects a table and goes next. Next step is Q/A section. In this section, saved words are arbitrarily selected. A selected word is put on a button. If user clicks button, button shows answer. Originally, program shows out German words first. I added a new function in v1.1 which reverses language order. So, user can let English words be shown first, then answer correct German meaning. 
+Used libraries:
+  •	Java.sql
+  •	Jawa.awt
+  •	Java.swing
+  •	Java.io
+  •	Java.util
+  •	Java.security
+  •	Apache.poi
+
+
+The program has two packages:
+  •	mavenPackage
+  o	mainScreen
+  o	App
+     • We read excel table here
+  o	saveScreen
+  o	quizScreen
+  •	util
+  o	connection
+  o	databaseOperations
+
+
