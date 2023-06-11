@@ -1,0 +1,122 @@
+// Dataset Link: https://www.kaggle.com/datasets/adityaramachandran27/world-air-quality-index-by-city-and-coordinates
+import numpy as np
+import pandas as pd
+
+df = pd.read_csv("AQI and Lat Long of Countries.csv")
+
+
+def exploreDF():
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    desc = df.describe()
+    print(df.info())
+    print(desc)
+    print(df.isnull().sum())
+
+    df_desc = pd.DataFrame(data=desc, index=desc.index, columns=df.columns)
+    sns.heatmap(df_desc, annot=True, cbar=False, cmap=sns.color_palette("coolwarm", 6))
+    plt.show()
+
+
+exploreDF()
+def prediction():
+    from sklearn.ensemble import ExtraTreesRegressor
+    from sklearn.model_selection import train_test_split
+    from sklearn.feature_selection import f_oneway, f_regression
+    from sklearn.metrics import mean_squared_error, confusion_matrix, ConfusionMatrixDisplay
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.pipeline import Pipeline
+    from scipy.stats import pearsonr
+    df_numeric = df.loc[:, ["AQI Value", "CO AQI Value", "Ozone AQI Value", "NO2 AQI Value", "PM2.5 AQI Value"]]
+    x, y = df_numeric.drop("AQI Value", axis=1), df_numeric["AQI Value"]
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.1, random_state=42)
+
+    def regressionAnalysis():
+        parameters = [("scaler", StandardScaler()), ("model", ExtraTreesRegressor())]
+        pipeline = Pipeline(parameters)
+        pipeline.fit(x_train, y_train)
+        x_test_normalized = pd.DataFrame(StandardScaler().fit_transform(x_test), columns=x_test.columns)
+        y_pred = pipeline.predict(x_test)
+        print("RMSE: ", np.sqrt(mean_squared_error(y_test, y_pred)))
+        print("Accuracy: ", pipeline.score(x_test, y_test))
+
+    regressionAnalysis()
+
+    def statisticalAnalysis():
+        correlation = []
+        for col in x.columns:
+            corr, p_value = pearsonr(x[col], y)
+            correlation.append([corr, p_value])
+        print("correlations via pearsonr ", correlation)
+        xyz, corr_coef = f_regression(x, y)
+        print("p_value via f_regression ", xyz, " ", corr_coef)
+        fval, pval = f_oneway(x, y)
+        print("f_oneway", fval, " : ", pval)
+
+    statisticalAnalysis()
+
+    def confusionMatrixVisualizer(y_test, y_pred, classes):
+        import matplotlib.pyplot as plt
+        cm = confusion_matrix(y_test, y_pred)
+        display = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=classes)
+        display.plot()
+        plt.show()
+
+
+prediction()
+
+
+def visualize():
+    import plotly.express as ex
+    import plotly.graph_objects as go
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    def map():
+        fig = ex.scatter_mapbox(df, lat="lat", lon="lng",
+                                hover_data={"lat": False, "lng": False, "City": True, "Country": True,
+                                            "AQI Value": True, "AQI Category": True}, color="AQI Value",
+                                color_continuous_scale=ex.colors.sequential.Hot)
+        fig.update_layout(title_text='Your Map Title', mapbox_style="open-street-map")
+        fig.show()
+
+    map()
+    def distribution(col_name="", kde=True, stat="count"):
+        sns.histplot(data=df, x=col_name, kde=kde, stat=stat)
+        plt.show()
+
+    distribution(col_name="AQI Value")
+    def violin():
+        sns.violinplot(data=df, x="AQI Category", y="AQI Value", palette="magma")
+        plt.show()
+
+    violin()
+    def heatmap():
+        numerical_cols = ["AQI Value", "CO AQI Value", "Ozone AQI Value", "NO2 AQI Value", "PM2.5 AQI Value"]
+        df1 = df.loc[:, numerical_cols]
+        sns.heatmap(df1.corr(), cmap=sns.light_palette("seagreen", as_cmap=True), annot=True)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.show()
+
+    heatmap()
+    def pair_plot(diag_kind="auto"):
+        sns.pairplot(data=df, vars=["AQI Value", "AQI Category", "CO AQI Value", "Ozone AQI Value", "NO2 AQI Value",
+                                    "PM2.5 AQI Value"], diag_kind=diag_kind)
+        plt.tight_layout()
+        plt.show()
+
+    pair_plot()
+
+    def distribution_plotly(col=""):
+        fig = go.Figure()
+        fig.add_trace(go.Violin(y=df[col], line_color="lightpink", box_visible=True, meanline_visible=True,
+                                fillcolor="lightseagreen",opacity=.7))
+        # fig.update_traces(side="positive")
+        fig.update_layout(template="plotly_dark")
+        fig.show()
+
+    distribution_plotly("AQI Value")
+
+
+visualize()
