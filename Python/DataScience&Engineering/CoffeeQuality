@@ -1,0 +1,143 @@
+// Dataset link: https://www.kaggle.com/datasets/fatihb/coffee-quality-data-cqi
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+df = pd.read_csv("../../../Veri/df_arabica_clean.csv")
+df.drop(["ICO Number"], axis=1, inplace=True)
+df.dropna(inplace=True)
+df_toVisualize = pd.DataFrame(df.iloc[:, [2, 3, 6, 8, 9, 15, 30]])
+def visualize():
+    df_toVisualize = df_toVisualize.groupby("Country of Origin").agg(Mean=("Total Cup Points", "mean"))
+
+    df_toVisualize = pd.DataFrame(data=data, columns=col)
+    df_toVisualize.sort_values("Mean",ascending=False,inplace=True)
+
+    sns.barplot(data=df_toVisualize,x=df_toVisualize.index,y=df_toVisualize.Mean)
+    
+    plt.xticks(rotation=45)
+    plt.show()
+
+def plotly_visualize():
+    def histogram():
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        df_toPredict = pd.DataFrame(df.iloc[:, 19:31])
+
+        df_toPredict.drop(["Defects","Sweetness","Clean Cup","Overall"],axis=1,inplace=True)
+        fig=make_subplots(rows=len(df_toPredict.columns),cols=1)
+
+        for i,col in enumerate(df_toPredict.columns):
+            fig.add_trace(go.Histogram(x=df_toPredict[col],name=col,nbinsx=50),row=i+1,col=1)
+        fig.update_layout(height=200*len(df_toPredict.columns),width=1000,title_text="Histograms")
+        fig.show()
+
+    def map():
+        import plotly.express as ex
+        df_grouped=df_toVisualize.groupby("Country of Origin")["Total Cup Points"].mean().reset_index()
+        fig=ex.choropleth(df_grouped,locations="Country of Origin",locationmode="country names",color="Total Cup Points",
+                          hover_name="Country of Origin",color_continuous_scale=ex.colors.sequential.Agsunset)
+        fig.show()
+    map()
+
+def predict_():
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.metrics import confusion_matrix,mean_squared_error,f1_score
+    from sklearn.model_selection import train_test_split,GridSearchCV,StratifiedKFold
+    from sklearn.linear_model import LogisticRegression,LinearRegression,Ridge
+    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.feature_selection import SelectKBest,chi2,f_regression
+    from scipy.stats import pearsonr
+
+    df_toPredict = pd.DataFrame(df.iloc[:, 19:31])
+    df_toPredict.drop(["Defects","Sweetness","Clean Cup","Overall"],axis=1,inplace=True)
+
+    def corr_matrx():
+        def encoding():
+            from sklearn.preprocessing import LabelEncoder,MinMaxScaler
+            df1=df.copy()
+            le=LabelEncoder()
+            mm=MinMaxScaler()
+            for col in df.columns:
+                if df[col].dtype in ["object","object64"]:
+                    df1[col]=le.fit_transform(df[col])
+                elif df[col].dtype in ["int64","float64"]:
+                    df1[col]= mm.fit_transform(df[col].values.reshape(-1,1))
+
+            width=20
+            height=20
+            sns.set(rc={"figure.figsize":(width,height)})
+            sns.heatmap(df1.corr(),cmap="coolwarm",annot=True)
+            plt.show()
+        encoding()
+    corr_matrx()
+    
+    def feature_extraction():
+        # pd.set_option('display.max_columns', None)
+        # print(df_toPredict.reset_index().describe())
+        x,y=df_toPredict.drop("Total Cup Points",axis=1),df_toPredict.iloc[:,-1]
+        correlation=[]
+        for col in x.columns:
+            corr,_=pearsonr(x[col],y)
+            correlation.append(corr)
+        df_corr=pd.Series(correlation,index=x.columns)
+
+        fig,(ax1,ax2)=plt.subplots(2,1)
+
+        df_corr.plot(kind="bar",ax=ax1)
+        ax1.set_ylabel("Correlation Coefficient")
+
+        _,p_values=f_regression(x,y)
+        print(np.log(p_values))
+        print(p_values)
+
+        p_values=pd.Series(p_values,index=x.columns)
+        p_values.plot(kind="bar",ax=ax2)
+        ax2.set_ylabel("p_values")
+
+        plt.show()
+
+
+    feature_extraction()
+    def train_model():
+        x,y=df_toPredict.drop("Total Cup Points",axis=1),df_toPredict.iloc[:,-1]
+        x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=.2,random_state=209)
+        model=RandomForestRegressor()
+        model.fit(x_train,y_train)
+        print(model.score(x_test,y_test))
+        y_pred=model.predict(x_test)
+        print(mean_squared_error(y_test,y_pred))
+    train_model()
+
+    def train_grid():
+        x,y=df_toPredict.drop("Total Cup Points",axis=1),df_toPredict.iloc[:,-1]
+
+        hyperparameters={
+    'n_estimators': [100, 200, 300],
+    'max_depth': [None, 5, 10, 15],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4]
+}
+        model=RandomForestRegressor(random_state=42)
+
+        grid=GridSearchCV(model,hyperparameters,cv=5,return_train_score=True,scoring="neg_mean_squared_error")
+        grid.fit(x,y)
+
+        print(grid.best_params_)
+        print(grid.best_estimator_)
+        print(grid.best_score_)
+
+        cvres=grid.cv_results_
+        for scr,params in zip(cvres["mean_test_score"],cvres["params"]):
+            print(np.sqrt(-scr),params)
+
+
+
+    train_grid()
+predict_()
+plotly_visualize()
+
+
+
+
