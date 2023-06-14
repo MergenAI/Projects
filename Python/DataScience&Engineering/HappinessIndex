@@ -1,0 +1,225 @@
+# Dataset link is : https://www.kaggle.com/datasets/sougatapramanick/happiness-index-2018-2019 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.express as ex
+import plotly.graph_objects as go
+import seaborn as sns
+from scipy.stats import pearsonr
+from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
+from sklearn.feature_selection import f_regression
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+df = pd.read_csv("../../../Veri/HappinessIndex/2019.csv")
+df.drop(f"{df.columns[0]}", axis=1, inplace=True)
+df_without_country_names = df.iloc[:, 1:]
+
+
+class Predict:
+    def __init__(self):
+        pass
+
+    def feature_observation(self):
+        x, y = df_without_country_names.iloc[:, 1:], df_without_country_names.iloc[:, 0]
+
+        def with_pearsonr():
+            correlations = []
+            for col in df_without_country_names.columns:
+                corr, p_value = pearsonr(x=df[col], y=y)
+                correlations.append([corr, p_value])
+            print("column correlation and p_value with pearsonr", correlations)
+
+        with_pearsonr()
+
+        def with_f_regression():
+            _, p_value = f_regression(x, y)
+            print("column p_value and with f_regression", p_value)
+
+        with_f_regression()
+
+    def ANOVA(self):
+        from statsmodels.formula.api import ols
+        df1 = df.rename(
+            columns={"GDP per capita": "GDP", "Social support": "Social", "Healthy life expectancy": "Health",
+                     "Freedom to make life choices": "Freedom", "Perceptions of corruption": "Perceptions"})
+        print(df1.columns)
+        manova_model = ols(
+            "Score ~ GDP + Social + Health + Freedom + Generosity + Perceptions",
+            data=df1).fit()
+
+        print(manova_model.summary())
+
+    def linearRegression(self):
+        # ANOVA implies that generosity has low effect to Score (with std error : .49, t-value: .984, p-value: .327).
+        # Because of that results, this column is dropped.
+        # R-squared and Adj. R-squared results showed that dataframe is well-suited to linear regression
+
+        df_predict = df_without_country_names.drop(["Generosity"], axis=1)
+        x, y = df_predict.iloc[:, 1:], df_predict.iloc[:, 0]
+
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=.3)
+        model = LinearRegression()
+        model.fit(x_train, y_train)
+
+        y_pred = model.predict(x_test)
+        print("linear regression model score: ", model.score(x_test, y_test))
+        print("MSE", mean_squared_error(y_test, y_pred))
+        print("RMSE", np.sqrt(mean_squared_error(y_test, y_pred)))
+
+    def randomTrees(self):
+        df_predict = df_without_country_names.drop(["Generosity"], axis=1)
+        x, y = df_predict.iloc[:, 1:], df_predict.iloc[:, 0]
+
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=.3)
+        model = RandomForestRegressor()
+        model.fit(x_train, y_train)
+
+        y_pred = model.predict(x_test)
+        print("RandomForestRegressor model score: ", model.score(x_test, y_test))
+        print("MSE", mean_squared_error(y_test, y_pred))
+        print("RMSE", np.sqrt(mean_squared_error(y_test, y_pred)))
+
+    def extraTrees(self):
+        df_predict = df_without_country_names.drop(["Generosity"], axis=1)
+        x, y = df_predict.iloc[:, 1:], df_predict.iloc[:, 0]
+
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=.2)
+        model = ExtraTreesRegressor()
+        model.fit(x_train, y_train)
+
+        y_pred = model.predict(x_test)
+        print("ExtraTreesRegressor model score: ", model.score(x_test, y_test))
+        print("MSE", mean_squared_error(y_test, y_pred))
+        print("RMSE", np.sqrt(mean_squared_error(y_test, y_pred)))
+
+    def gridSearch(self):
+        from sklearn.model_selection import GridSearchCV
+        df_predict = df_without_country_names.drop(["Generosity"], axis=1)
+        x, y = df_predict.iloc[:, 1:], df_predict.iloc[:, 0]
+
+        param_grid = {
+            'n_estimators': [100, 200, 300],
+            'max_depth': [5, 10, 20],
+            'min_samples_split': [2, 5, 10]
+        }
+
+        model = RandomForestRegressor()
+        grid = GridSearchCV(model, param_grid, cv=5, return_train_score=True, scoring="neg_mean_squared_error")
+        grid.fit(x, y)
+
+        print("best params ", grid.best_params_)
+        print("best score ", grid.best_score_)
+        print("best estimator ", grid.best_estimator_)
+
+        cv_res = grid.cv_results_
+        for score, params in zip(cv_res["mean_test_score"], cv_res["params"]):
+            print(np.sqrt(-score), params)
+
+    def makePipeline(self):
+        df_predict = df_without_country_names.drop(["Generosity"], axis=1)
+        x, y = df_predict.iloc[:, 1:], df_predict.iloc[:, 0]
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=.2)
+
+        pipeline_parameters = [("scaler", StandardScaler()), ("predictor", RandomForestRegressor())]
+        model = Pipeline(pipeline_parameters)
+        model.fit(x_train, y_train)
+        y_pred = model.predict(x_test)
+        print("pipeline model score: ", model.score(x_test, y_test))
+        print("MSE", mean_squared_error(y_test, y_pred))
+        print("RMSE", np.sqrt(mean_squared_error(y_test, y_pred)))
+
+    def hyperparameterTuning(self):
+        from sklearn.model_selection import RandomizedSearchCV
+        df_predict = df_without_country_names.drop(["Generosity"], axis=1)
+        x, y = df_predict.iloc[:, 1:], df_predict.iloc[:, 0]
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=.2)
+
+        hyperparameters_decision_tree = {'criterion': ['poisson', 'absolute_error', 'squared_error', 'friedman_mse'],
+                                         'max_depth': np.array([2, 3, 4, 5, 6, 7, 8, 9, 10]),
+                                         'max_features': np.array([2, 3, 4, 5, 6, 7, 8, 9, 10]),
+                                         'min_samples_leaf': np.array([2, 3, 4, 5, 6, 7, 8, 9, 10])}
+        hyperparameters_random_forest = {
+            "criterion": ["squared_error", "absolute_error", "friedman_mse", "poisson"],
+            "min_samples_split": np.arange(1, 100, 5),
+            "max_depth": np.arange(1, 100, 5),
+            "min_samples_leaf": np.arange(1, 100, 5),
+            "bootstrap": [True, False]
+
+        }
+        # model = DecisionTreeRegressor()
+        model = RandomForestRegressor()
+
+        grid = RandomizedSearchCV(model, hyperparameters_random_forest, cv=10, return_train_score=True,
+                                  scoring="neg_mean_squared_error", refit=True, verbose=True, n_jobs=-1)
+        grid.fit(x, y)
+
+        y_pred = grid.predict(x_test)
+        print("MSE", mean_squared_error(y_test, y_pred))
+        print("RMSE", np.sqrt(mean_squared_error(y_test, y_pred)))
+
+        print("best params ", grid.best_params_)
+        print("best score ", -grid.best_score_)
+        print("best estimator ", grid.best_estimator_)
+
+
+class Visualize:
+    def exploreData(self):
+        global df
+        desc = df.describe()
+        print(df.info())
+        print(df.isnull().sum())
+        sns.heatmap(desc, annot=True, cbar=False, cmap=sns.color_palette("coolwarm", 10))
+        plt.xticks(rotation=30)
+        self.showPlot()
+
+    def pairPlot(self):
+        sns.pairplot(df, vars=df.columns[1:], diag_kind="kde", plot_kws={"s": 5, "edgecolor": "black"})
+        plt.yticks(rotation=30)
+        self.showPlot()
+
+    def showPlot(self):
+        plt.tight_layout()
+        plt.show()
+
+    def map(self):
+        fig = ex.choropleth(df, locations=df[df.columns[0]], locationmode="country names", color=df["Score"])
+        fig.show()
+
+    def histplotDistribution(self):
+        sns.histplot(data=df, x="Score", kde=True, stat="probability")
+        self.showPlot()
+
+    def heatmap(self):
+        corr = df.drop(f"{df.columns[0]}", axis=1).corr()
+        sns.heatmap(corr, annot=True, cmap=sns.color_palette("viridis"))
+        self.showPlot()
+
+    def violinDist(self):
+        fig = go.Figure()
+        columns = df.columns[1:]
+        for col in columns:
+            fig.add_trace(go.Violin(x=df[col], name=col))
+        fig.update_layout(template="plotly_dark")
+        fig.show()
+
+
+if __name__ == "__main__":
+    Visualize().exploreData()
+    Visualize().pairPlot()
+    Visualize().map()
+    Visualize().histplotDistribution()
+    Visualize().heatmap()
+    Visualize().violinDist()
+
+    Predict().feature_observation()
+    Predict().ANOVA()
+    Predict().linearRegression()
+    Predict().randomTrees()
+    Predict().extraTrees()
+    Predict().gridSearch()
+    Predict().makePipeline()
+    Predict().hyperparameterTuning()
