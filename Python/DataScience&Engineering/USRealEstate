@@ -1,0 +1,415 @@
+  # https://www.kaggle.com/datasets/ahmedshahriarsakib/usa-real-estate-dataset
+
+# Libraries for Visualize
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.express as ex
+import seaborn as sns
+from geopy.geocoders import Nominatim
+
+# Libraries for ML
+from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor, AdaBoostRegressor, \
+    GradientBoostingRegressor, VotingRegressor
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, Normalizer, RobustScaler
+
+df = pd.read_csv("../../../Veri/USA_Real _Estate_Dataset_withLatLonMeanMedian.csv")
+
+
+
+class USRealEstate:
+    class dataDiscovery:
+        def explore(self):
+            # There are so many null rows. There are some options to handle with them:
+            # 1- Filling null rows:
+            # 2- Dropping null rows:
+            # If I drop these rows I will lose huge percentage of data( approx: 26%)
+            # These null columns are significant rows
+            #  If I fill null rows with a function (mean, mod, median ...) it may mislead data and break the real data
+            # 3- Doing some data engineering, e.g. whether there are lands without houses,houses without acre land
+
+            self.findLands()
+            self.findHousesWithoutAcrelot()
+            self.catToNumeric()
+            df.dropna(inplace=True)
+
+            desc_mat = df.describe()
+            print(df.info())
+            print(desc_mat)
+            print(df.isnull().sum())
+            # Lands are removed to estimate house prices more accurately
+            df.drop(df[df["is_land"] == True].index, inplace=True)
+
+            sns.heatmap(desc_mat, annot=True)
+            plt.tight_layout()
+            plt.show()
+            df1 = df.dropna()
+            print(df1.info())
+
+        def findLands(self):
+            df["is_land"] = False
+            df.loc[(df["bed"].isna()) & (df["bath"].isna()) & (df["house_size"].isna()) & (
+                    df["acre_lot"] > 0), "is_land"] = True
+            df.loc[df["is_land"] == True, ["bed", "bath", "house_size"]] = 0
+
+        def findHousesWithoutAcrelot(self):
+            df["with_acrelot"] = True
+            df.loc[(df["acre_lot"].isna()) & (df["is_land"] == False) & (df["bath"] > 0) & (df["bed"] > 0) &
+                   (df["house_size"] > 0), "with_acrelot"] = False
+            df.loc[df["with_acrelot"] == False, "acre_lot"] = 0.0
+
+        def catToNumeric(self):
+            # Notes in explore()
+            for cat_cols in df.select_dtypes(include=["object"]):
+                cat_dict = {}
+                unq_array = df[f"{cat_cols}"].unique()
+                for i in range(len(unq_array)):
+                    cat_dict[f"{unq_array[i]}"] = i
+                df[f"{cat_cols}"] = df[f"{cat_cols}"].map(cat_dict)
+        
+    class Visualize:
+
+        def __init__(self, dataframe):
+            self.df = dataframe
+
+        def handleWithNanCoords(self):
+
+            # We check the reason why some coordinates are NaN, whether there are typos
+            df_nan_coords_tochange = pd.read_csv("../../../Veri/USA_Real _Estate_Dataset_withLatLon.csv")
+
+            df_find_nan_coords = pd.DataFrame(df_nan_coords_tochange.loc[df_nan_coords_tochange["lat"].isna()])
+            # Hale's Location instead Hales Location and Sandy River Plantation instead Sandy River Plt
+
+            df_find_nan_coords.loc[df_find_nan_coords["city"] == "Hales Location", "city"] = "Hale's Location"
+            df_nan_coords_tochange.loc[df_nan_coords_tochange["city"] == "Hales Location", "city"] = "Hale's Location"
+            df_find_nan_coords.loc[df_find_nan_coords["city"] == "Sandy River Plt", "city"] = "Sandy River Plantation"
+            df_nan_coords_tochange.loc[
+                df_nan_coords_tochange["city"] == "Sandy River Plt", "city"] = "Sandy River Plantation"
+
+            coordsDict = self.findCoordinates(df_find_nan_coords)
+
+            def retrieveCoords(city_r):
+                try:
+                    return coordsDict[city_r]
+                except:
+                    return {"lat": None, "lon": None}
+
+            df_find_nan_coords[["lat", "lon"]] = df_find_nan_coords[f"city"].apply(
+                lambda x: pd.Series(retrieveCoords(x)))
+            df_nan_coords_tochange.fillna(df_find_nan_coords, inplace=True)
+            df_nan_coords_tochange.to_csv("../../../Veri/USA_Real_Estate_Dataset_withLatLon.csv")
+
+        def findCoordinates(self, df_nan_coords=pd.DataFrame):
+            import time
+            cityArray = df_nan_coords["city"].unique()
+            coordsDict = {}
+            geolocator = Nominatim(user_agent="my-custom-application")
+            for i, city in enumerate(cityArray):
+                try:
+                    location = geolocator.geocode(f"{city}")
+
+                    lat = location.latitude
+                    lon = location.longitude
+                except:
+                    lat = None
+                    lon = None
+
+                coordsDict[f"{city}"] = {"lat": lat, "lon": lon}
+
+                time.sleep(.01)
+            return coordsDict
+
+        def applyCoordinates(self):
+            import time
+            self.df["lat"] = 0
+            self.df["lon"] = 0
+            coordsDict = self.findCoordinates(self.df)
+            print("Coordinate dictionary is done!")
+            self.df.to_csv("../../../Veri/USA_Real _Estate_Dataset_withLatLon.csv")
+            print("New Dataset is saved!")
+
+            def retrieveCoords(city_r):
+                try:
+                    time.sleep(.01)
+                    return coordsDict[city_r]
+                except:
+                    time.sleep(.01)
+                    return {"lat": None, "lon": None}
+
+            self.df[["lat", "lon"]] = self.df[f"city"].apply(lambda x: pd.Series(retrieveCoords(x)))
+
+        def calculateMeanMedian(self):
+            self.df["mean"] = None
+            self.df["median"] = None
+            self.df.drop(self.df.iloc[:, [0, 1]], axis=1, inplace=True)
+
+            grouped = self.df.groupby("city").agg(Mean=("price", "mean"), Median=("price", "median"))
+            df_grouped = pd.DataFrame(data=grouped)
+            df_grouped.reset_index(inplace=True)
+            df_grouped["city"] = grouped.index
+            df_grouped.columns = ["city", "mean", "median"]
+
+            df_dict = dict()
+
+            for city_unique in df_grouped["city"].unique():
+                selected_rows = df_grouped[df_grouped['city'] == city_unique]
+                mean = selected_rows['mean'].item()
+                median = selected_rows['median'].item()
+                df_dict[f"{city_unique}"] = [mean, median]
+
+            def retrieveMeanMedian(city=""):
+                return df_dict[f"{city}"]
+
+            self.df[["mean", "median"]] = self.df[f"city"].apply(lambda x: pd.Series(retrieveMeanMedian(x)))
+            self.df.to_csv("../../../Veri/USA_Real _Estate_Dataset_withLatLonMeanMedian.csv")
+
+        def worldMap(self):
+
+            fig = ex.scatter_mapbox(self.df, lat="lat", lon="lon",
+                                    hover_data={"lat": False, "lon": False, "city": True}, color="mean",
+                                    range_color=(4e5, 10e6), color_continuous_scale=ex.colors.sequential.Pinkyl)
+            fig.update_layout(title_text='Your Map Title')
+            fig.update_layout(
+                mapbox_style="white-bg",
+                mapbox_layers=[
+                    {
+                        "below": 'traces',
+                        "sourcetype": "raster",
+                        "sourceattribution": "United States Geological Survey",
+                        "source": [
+                            "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"
+                        ]
+                    },
+                    {
+                        "sourcetype": "raster",
+                        "sourceattribution": "Government of Canada",
+                        "source": ["https://geo.weather.gc.ca/geomet/?"
+                                   "SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857"
+                                   "&WIDTH=1000&HEIGHT=1000&LAYERS=RADAR_1KM_RDBR&TILED=true&FORMAT=image/png"],
+                    }
+                ])
+
+            fig.show()
+
+    def heatMap(self):
+        sns.heatmap(data=self.df_dropNa.corr(), annot=True, cmap="coolwarm")
+        self.plotGraph()
+
+    def histogram(self, xCol="", stat=""):
+        unique_array = self.df_dropNa[f"{xCol}"].unique().tolist()
+        sns.histplot(data=self.df_dropNa, x=xCol, stat=stat, bins=len(unique_array))
+        self.plotGraph()
+
+    def scatterPlot(self, x, y, hue):
+        sns.scatterplot(data=self.df_dropNa, x=x, y=y, hue=hue, color="viridis")
+        self.plotGraph()
+
+    def plotGraph(self):
+        plt.tight_layout()
+        plt.show()
+
+
+    class Statistics:
+        def __init__(self, dataframe=pd.DataFrame):
+            self.df = dataframe
+            self.x, self.y = dataframe.drop(columns=["price"], axis=1), dataframe.loc[:, "price"]
+
+        def columnImportance(self):
+            from sklearn.feature_selection import SelectKBest, chi2
+            from scipy.stats import pearsonr
+            from sklearn.model_selection import train_test_split
+
+            self.x_train, self.x_cv, self.y_train, self.y_cv = train_test_split(self.x, self.y, train_size=.05)
+            # self.x_test,self.x_validate,self.y_test,self.y_validate=train_test_split(self.x_cv,self.y_cv,train_size=.5)
+            fig, (ax1) = plt.subplots(1, 1)
+            correlation = []
+            for col in self.x.columns:
+                f_stat, p_value = pearsonr(self.x[f"{col}"], self.y)
+                correlation.append(p_value)
+            df_corr = pd.Series(np.log(correlation), index=self.x.columns)
+            df_corr.plot(kind="bar", ax=ax1)
+            plt.show()
+
+            print(df_corr)
+
+            # All columns seem to be relevant
+
+            def select():
+                model = SelectKBest(score_func=chi2, k=len(self.x.columns))
+                model.fit(self.x, self.y)
+                print(model.scores_)
+                df_best_cols = pd.Series(np.log(model.scores_), index=self.x.columns)
+                df_best_cols.plot(kind="bar")
+                plt.show()
+
+            select()
+
+        def ANOVA(self):
+            from statsmodels.formula.api import ols
+            import statsmodels.api as sa
+            anova = ols("price ~ bed + bath + acre_lot + city + state + house_size", data=self.df).fit()
+            print(anova.summary())
+
+            anova_table = sa.stats.anova_lm(anova, typ=2)
+            print(anova_table)
+            # It seems like our dataset doesn't suit linear regression
+            # R-squared and Adj. R-squared are .383
+
+
+    class Predict:
+        def __init__(self, dataframe=pd.DataFrame()):
+            self.df = dataframe
+            self.x, self.y = dataframe.drop(columns=["price"], axis=1), dataframe.loc[:,"price"]
+
+        def selectModel(self, model="random", k=10):
+            modelDict = {
+                "random": RandomForestRegressor(),
+                "extra": ExtraTreesRegressor(),
+                "linear": LinearRegression(),
+                "logistic": LogisticRegression(),
+                "kn": KNeighborsRegressor(n_neighbors=k),
+                "vote": VotingRegressor(estimators=[('gb', RandomForestRegressor())]),
+                "ada": AdaBoostRegressor(),
+                "gradient": GradientBoostingRegressor()
+            }
+            modelReturn = modelDict[f"{model}"]
+            if modelReturn is None:
+                raise Exception(f"No model found named {model}")
+            print("Selected model is : ", modelDict[f"{model}"].__class__.__name__)
+
+            return modelReturn
+
+        def regressionanalysis(self, modelName=""):
+            model = self.selectModel(modelName)
+            kf = KFold(n_splits=10, shuffle=True, random_state=42)
+
+            for train_index, test_index in kf.split(self.x):
+                x_train, x_test = self.x.iloc[train_index], self.x.iloc[test_index]
+                y_train, y_test = self.y.iloc[train_index], self.y.iloc[test_index]
+
+            # x_train, x_test, y_train, y_test = train_test_split(self.x, self.y, test_size=.1)
+            model.fit(x_train, y_train)
+
+            print(model.score(x_test, y_test))
+
+            y_pred = model.predict(x_test)
+            print("MSE: ", mean_squared_error(y_test, y_pred))
+            print("MAE: ", mean_absolute_error(y_test, y_pred))
+            print("RMSE: ", np.sqrt(mean_squared_error(y_test, y_pred)))
+
+        def regressionanalysis(self, modelName="", x=pd.DataFrame, y=pd.DataFrame):
+
+            model = self.selectModel(modelName)
+            x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.1)
+            model.fit(x_train, y_train)
+
+            print(model.score(x_test, y_test))
+
+            y_pred = model.predict(x_test)
+            print("MSE: ", mean_squared_error(y_test, y_pred))
+            print("MAE: ", mean_absolute_error(y_test, y_pred))
+            print("RMSE: ", np.sqrt(mean_squared_error(y_test, y_pred)))
+
+        def removeOutliersFromPrice(self, threshold=3):
+            def observeOutliers():
+                import seaborn.objects as so
+                fig = so.Plot(self.df, x="state", y="price", color="with_acrelot").add(so.Dot(), so.Dodge(),
+                                                                                       so.Jitter(.15)).layout(
+                    size=(15, 10))
+                fig.show()
+                # It seems we have a threshold about 3
+
+            observeOutliers()
+            from scipy.stats import zscore
+            z = np.abs(zscore(self.df["price"]))
+            # outliers=self.df[z>threshold]
+            self.clean_data = self.df[z <= threshold]
+
+            return self.clean_data
+
+        def scaleData(self, scaler="", dataframe=pd.DataFrame):
+            scaler = self.selectScaler(scaler)
+            x, y = dataframe.drop("price", axis=1), dataframe.loc[:, "price"]
+            x_transformed = scaler.fit_transform(x)
+
+            return x_transformed, y
+
+        def selectScaler(self, scaler_name="minmax"):
+
+            scalerDict = {
+                "minmax": MinMaxScaler(),
+                "standard": StandardScaler(),
+                "normal": Normalizer(),
+                "logistic": RobustScaler()
+            }
+            model = scalerDict[f"{scaler_name}"]
+
+            if model is None:
+                raise Exception(f"No scaler found named {scaler_name}")
+            print("Selected scaler is : ", scalerDict[f"{scaler_name}"].__class__.__name__)
+
+            return model
+
+        def regressionViaGridSearch(self, modelName=""):
+            from sklearn.model_selection import GridSearchCV
+            model = self.selectModel(model=modelName)
+            hyperparameters = {
+                'max_depth': [None, 5, 10, 15],
+                'min_samples_split': [2, 5, 10],
+                'min_samples_leaf': [1, 2, 4]
+            }
+            gridcv = GridSearchCV(estimator=model, param_grid=hyperparameters, cv=5, verbose=1, return_train_score=True,
+                                  scoring="neg_mean_absolute_error")
+            gridcv.fit(self.x, self.y)
+            print(gridcv.best_score_)
+            print(gridcv.best_params_)
+            print(gridcv.best_estimator_)
+
+            resultscv = gridcv.cv_results_
+
+            for score, params in zip(resultscv["mean_test_score"], resultscv["params"]):
+                print("Score: ", -score, "/t", "Parameters: ", params)
+
+
+if __name__ == "__main__":
+  
+    discover = USRealEstate().dataDiscovery()
+    discover.catToNumeric()
+    discover.explore()
+    median, mean, drop = discover.fill_drop_rows()
+    discover.groupColumns()
+
+    visual = USRealEstate().Visualize(dataframe=df)
+    visual.calculateMeanMedian()
+    visual.worldMap()
+    visual.handleWithNanCoords()
+    visual.uniqueCities()
+    visual.convertToGeo()
+    visual.heatMap()
+    visual.histogram(xCol="bath",stat="count")
+    visual.scatterPlot(x="bed",y="price",hue="bath")
+
+    stats = USRealEstate().Statistics(dataframe=df)
+    stats.columnImportance()
+    stats.ANOVA()
+
+    predict = USRealEstate().Predict(dataframe=df)
+    predict.regressionViaGridSearch(modelName="random")
+    predict.regressionanalysis(modelName="random")
+    print("outliers removed")
+    print()
+    dataFrame = predict.removeOutliersFromPrice()
+    predict.regressionanalysis(modelName="random", dataframe=dataFrame)
+    print()
+    print()
+
+    print("outliers removed + data normalized")
+    x,y = predict.scaleData(scaler="minmax", dataframe=df)
+    predict.regressionanalysis(modelName="extra", x=x,y=y)
+    # Interestingly after scaling data error hikes crucially.
+    print()
+    print()
